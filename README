@@ -1,0 +1,59 @@
+`devsn2mac` (c) 2019 Majenko Technologies.
+
+When using the internal Ethernet peripheral of the PIC32MZ-DA under Linux you
+get assigned a random MAC address each time you boot. This is because the
+Ethernet peripheral doesn't actually have a MAC address of its own and relies
+on software to give it one.
+
+This small program reads the first 6 bytes of the DEVSN registers of the PIC32
+and uses that data to generate a MAC address and apply it to the `eth0` network
+interface.  The included systemd service unit file should be executed as a "wanted-by"
+from the `network.target` to make the alterations to the interface before it is
+brought online.
+
+Compiling
+=========
+
+Natively
+--------
+
+Once you have checked out or downloaded the repo:
+
+    ./bootstrap.sh
+
+This will use `sudo` to install `automake` and `autoconf` if you don't already have
+them installed, then run `autoreconf -fi` to generate the configure script.
+
+    ./configure --prefix=/usr
+    make
+    sudo make install
+    sudo systemctl daemon-reload
+
+To make it run at startup:
+
+    sudo systemctl enable devsn2mac
+
+Cross-compiling
+---------------
+
+Since it can be a bit of a drag compiling and installing on a low-memory system like
+a 32MB PIC32MZ-DA cross compilation is fully supported.
+
+Again, run boootstrap:
+
+    ./bootstrap.sh
+
+This time specify a `--host` while configuring, and optionally a location to install:
+
+    ./configure --prefix=${HOME}/staging --host=mipsel-linux-gnu
+    make
+    (optionally) make install
+
+Manual installation
+-------------------
+
+Only two files are required. After compilation copy these files to your PIC32 Linux installation:
+
+    src/devsn2mac         -> /usr/sbin/
+    src/devsn2mac.service -> /lib/systemd/system/
+
