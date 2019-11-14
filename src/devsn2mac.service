@@ -1,0 +1,9 @@
+[Unit]
+Description=Configure eth0 MAC address from DEVSN
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/devsn2mac
+
+[Install]
+WantedBy=network.target
