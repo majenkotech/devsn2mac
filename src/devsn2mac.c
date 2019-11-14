@@ -47,6 +47,9 @@ int main(char **argv, int argc) {
 	read(config_mem_fd, address, 6);
 	close(config_mem_fd);
 
+	address[0] |= 0x02;	// Force locally administered
+	address[0] &= 0xFE;	// Force unicast
+
 	printf("Mac address: %02x:%02x:%02x:%02x:%02x:%02x\n",
 		address[0],
 		address[1],
