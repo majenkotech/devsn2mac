@@ -36,18 +36,25 @@ int setMacAddress(uint8_t mac[6]) {
 int main(int argc, char **argv) {
     int config_mem_fd;
     uint8_t address[6];
+
     
     int dryrun = 0;
     int help = 0;
+    int forced = 0;
     int opt;
+    char *forced_mac;
 
-    while ((opt = getopt(argc, argv, "dh")) != -1) {
+    while ((opt = getopt(argc, argv, "dhm:")) != -1) {
         switch (opt) {
             case 'd': // Dry-run
                 dryrun++;
                 break;
             case 'h': // Help
                 help++;
+                break;
+            case 'm': // Forced mac
+                forced++;
+                forced_mac = optarg;
                 break;
             default: // Unknown option
                 fprintf(stderr, "Unknown option: %c\n", opt);
@@ -59,40 +66,57 @@ int main(int argc, char **argv) {
     if (help > 0) {
         printf("Usage: %s [-hd]\n", argv[0]);
         printf("    Options:\n");
-        printf("        -h: This help text\n");
-        printf("        -d: Dry-run (do not set MAC address)\n");
+        printf("        -h:       This help text\n");
+        printf("        -m <mac>: Force a specific MAC address\n");
+        printf("        -d:       Dry-run (do not set MAC address)\n");
         return 0;
     }
-        
-    config_mem_fd = open("/dev/mem", O_RDONLY | O_SYNC);
-    if (config_mem_fd < 0) {
-        fprintf(stderr, "Unable to open /dev/mem: %s\n", strerror(errno));
-        return -1;
-    }
 
-    lseek(config_mem_fd, 0xBFC54020, SEEK_SET);
-    if (read(config_mem_fd, address, 6) != 6) {
-        fprintf(stderr, "Error reading DEVSN memory: %s\n", strerror(errno));
-        return -1;
-    }
-    close(config_mem_fd);
-
-    address[0] |= 0x02;    // Force locally administered
-    address[0] &= 0xFE;    // Force unicast
-
-    printf("Mac address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-        address[0],
-        address[1],
-        address[2],
-        address[3],
-        address[4],
-        address[5]
-    );
-
-    if (dryrun == 0) {
-        if (setMacAddress(address) == -1) {
-            fprintf(stderr, "Unable to set MAC address: %s\n", strerror(errno));
+    if (forced) {
+        if (sscanf(forced_mac, "%x:%x:%x:%x:%x:%x", 
+            &address[0], &address[1], &address[2],
+            &address[3], &address[4], &address[5]) == 6) {
+            if (dryrun == 0) {
+                if (setMacAddress(address) == -1) {
+                    fprintf(stderr, "Unable to set MAC address: %s\n", strerror(errno));
+                    return -1;
+                }
+            }
+        } else {
+            fprintf(stderr, "Badly formatted MAC address. Expected 00:11:22:33:44:55:66\n");
             return -1;
+        }
+    } else {
+        config_mem_fd = open("/dev/mem", O_RDONLY | O_SYNC);
+        if (config_mem_fd < 0) {
+            fprintf(stderr, "Unable to open /dev/mem: %s\n", strerror(errno));
+            return -1;
+        }
+
+        lseek(config_mem_fd, 0xBFC54020, SEEK_SET);
+        if (read(config_mem_fd, address, 6) != 6) {
+            fprintf(stderr, "Error reading DEVSN memory: %s\n", strerror(errno));
+            return -1;
+        }
+        close(config_mem_fd);
+
+        address[0] |= 0x02;    // Force locally administered
+        address[0] &= 0xFE;    // Force unicast
+
+        printf("Mac address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+            address[0],
+            address[1],
+            address[2],
+            address[3],
+            address[4],
+            address[5]
+        );
+
+        if (dryrun == 0) {
+            if (setMacAddress(address) == -1) {
+                fprintf(stderr, "Unable to set MAC address: %s\n", strerror(errno));
+                return -1;
+            }
         }
     }
     return 0;
